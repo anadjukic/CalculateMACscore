@@ -3,46 +3,13 @@ import os
 import cv2
 import numpy as np
 from src.functions import *
+from src.calc_functions import *
 
-
-# if __name__ == '__main__':
-#     # data_dir = os.chdir('C:/Users/Milica/OneDrive - Universitaet Bern/EHH 2021/pngall')
-#     data_dir = os.getcwd() + r"\data"
-#     # data_list = [file for file in os.listdir(data_dir) if file.endswith(('.dcm', '.DCM'))]
-#     # data_path = data_dir + "\\" + data_list[0]
-#
-#     # dcm = dcmread(data_path)
-#     # img = dcm.pixel_array
-#     # img = ((img - img.min()) * (1 / (img.max() - img.min()) * 255)).astype('uint8')
-#
-#     file_path = data_dir + "\\" + "crv.png"
-#     img = cv2.imread(file_path)
-#     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-#     img = ((img - img.min()) * (1 / (img.max() - img.min()) * 255)).astype('uint8')
-#
-#     plt.figure()
-#     plt.imshow(img, cmap=plt.cm.gray)
-#     plt.show()
-#
-#     pixel_values = np.float32(img.reshape((-1, 1)))
-#     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.2)
-#     k = 4
-#     _, labels, (centers) = cv2.kmeans(pixel_values, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
-#
-#     centers = np.uint8(centers)
-#     labels = labels.flatten()
-#
-#     seg_img = centers[labels.flatten()]
-#     seg_img = seg_img.reshape(img.shape)
-#
-#     plt.figure()
-#     plt.imshow(seg_img)
-#     plt.show()
 
 TOP_VIEW_FILE = "top_view.dcm"
 SIDE_VIEW_FILE = "side_view.dcm"
 TOP_VIEW_ATLAS = "top_view_atlas.png"
-SIDE_VIEW_ATLAS = "side_view_atlas.png"
+SIDE_VIEW_ATLAS = "side_view_atlas_1.png"
 TOP_VIEW_REG = "top_view_reg.png"
 SIDE_VIEW_REG = "side_view_reg.png"
 PLOT_OK = True
@@ -84,9 +51,149 @@ if PLOT_OK:
     plt.title("Side view")
     plt.show()
 
-top_view_atlas = register(top_view, top_view_atlas)
-cv2.imwrite(data_dir + "\\" + TOP_VIEW_REG, top_view_atlas)
+top_view_reg = register(top_view, top_view_atlas)
+# cv2.imwrite(data_dir + "\\" + TOP_VIEW_REG, top_view_atlas)
 
-side_view_atlas = register(side_view, side_view_atlas)
-cv2.imwrite(data_dir + "\\" + SIDE_VIEW_REG, side_view_atlas)
+side_view_reg = register(side_view, side_view_atlas)
+# cv2.imwrite(data_dir + "\\" + SIDE_VIEW_REG, side_view_atlas)
 
+## --------------------------------------------------------------------------------------
+# TOP VIEW
+view = top_view_reg
+values, counts = np.unique(view, return_counts=True)
+top_view_areas = values[np.argpartition(-counts, kth=4)[:4]]
+
+# cv2.imwrite('D_top_view.png', top_view)
+# cv2.imwrite('D_top_view_reg.png', top_view_reg)
+
+view = top_view
+non_artery_area = create_mask(view)
+if PLOT_OK:
+    plt.figure()
+    plt.imshow(non_artery_area, 'gray')
+    plt.show()
+
+edges = edge_detection(view)
+if PLOT_OK:
+    plt.figure()
+    plt.imshow(edges, 'gray')
+    plt.show()
+
+cv2.imwrite('edges_top_view.png', edges)
+
+non_artery_area[non_artery_area > 0] = 255
+artery_area = 255 - non_artery_area
+artery_edges = edges * artery_area
+
+cv2.imwrite('artery_area_top_view.png', artery_area)
+
+if PLOT_OK:
+    plt.figure()
+    plt.imshow(artery_area, 'gray')
+    plt.show()
+
+    plt.figure()
+    plt.imshow(artery_edges, 'gray')
+    plt.show()
+
+# Arteries
+a1 = artery_edges.copy()
+a2 = artery_edges.copy()
+a3 = artery_edges.copy()
+
+a1[top_view_reg != top_view_areas[1]] = 0
+a2[top_view_reg != top_view_areas[2]] = 0
+a3[top_view_reg != top_view_areas[3]] = 0
+
+a = (a1 | a2 | a3) * 255
+cv2.imwrite('arteries_top_view.png', a)
+
+plt.figure()
+plt.imshow(a, 'gray')
+plt.show()
+
+###########
+# SIDE_VIEW
+
+view = side_view_reg
+values, counts = np.unique(view, return_counts=True)
+side_view_areas = values[np.argpartition(-counts, kth=3)[:3]]
+
+cv2.imwrite('D_side_view.png', side_view)
+cv2.imwrite('D_side_view_reg.png', side_view_reg)
+
+view = side_view
+non_artery_area = create_mask(view)
+if PLOT_OK:
+    plt.figure()
+    plt.imshow(non_artery_area, 'gray')
+    plt.show()
+
+edges = edge_detection(view)
+if PLOT_OK:
+    plt.figure()
+    plt.imshow(edges, 'gray')
+    plt.show()
+
+cv2.imwrite('edges_side_view.png', edges)
+
+non_artery_area[non_artery_area > 0] = 255
+artery_area = 255 - non_artery_area
+artery_edges = edges * artery_area
+
+cv2.imwrite('artery_area_side_view.png', artery_area)
+
+if PLOT_OK:
+    plt.figure()
+    plt.imshow(artery_area, 'gray')
+    plt.show()
+
+    plt.figure()
+    plt.imshow(artery_edges)
+    plt.show()
+
+# Arteries
+a1 = artery_edges.copy()
+a2 = artery_edges.copy()
+
+a1[side_view_reg != side_view_areas[1]] = np.uint8(0)
+a2[side_view_reg != side_view_areas[2]] = np.uint8(0)
+
+a = (a1 | a2) * 255
+cv2.imwrite('arteries_side_view.png', a)
+
+plt.figure()
+plt.imshow(a, 'gray')
+plt.show()
+
+# regions = [a1, a2]
+# ind = 0
+# for r in regions:
+#     ind += 1
+#     cnts, _ = cv2.findContours(r, mode=cv2.RETR_LIST, method=cv2.CHAIN_APPROX_NONE)
+#     MAX = 255
+#     valid_contours = np.zeros(r.shape, np.uint8)
+#     l = 0
+#     for c in cnts:
+#         area = cv2.contourArea(c)
+#     # if area > 0:
+#         if cv2.arcLength(c, True) > 10:
+#             ((cx, cy), (a, b), angle) = cv2.minAreaRect(c)
+#         # box = cv2.boxPoints(rect)
+#         # box = np.int0(box)
+#         # a = np.sqrt((box[0][0]-box[1][0])**2 + (box[0][1]-box[1][1])**2)
+#         # b = np.sqrt((box[0][0]-box[3][0])**2 + (box[0][1]-box[3][1])**2)
+#             if min(a, b) / max(a, b) < 0.5:
+#                 cv2.drawContours(valid_contours, [c], 0, MAX, -1)
+#                 l += np.sqrt(a**2 + b**2) / 2
+#     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+#     crvici = cv2.morphologyEx(
+#         valid_contours, cv2.MORPH_DILATE, kernel, iterations=1
+#     )
+#     from PIL import Image
+#     temp = Image.fromarray(crvici)
+#     path = r"C:\Users\Milica\Desktop\crv" + str(ind) + ".jpg"
+#     # temp.save(temp, path)
+#     plt.figure()
+#     plt.imshow(crvici)
+#     plt.show()
