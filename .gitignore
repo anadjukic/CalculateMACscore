@@ -129,3 +129,5 @@ dmypy.json
 .pyre/
 
 .idea
+main_ja.py
+soksi.py
